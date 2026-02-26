@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shahbaz Saleem — Portfolio</title>
+  <title>Shahbaz Saleem — Software Mobile Architect · iOS</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -97,7 +97,7 @@
     }
 
     .hero-tagline {
-      max-width: 520px;
+      max-width: 560px;
       color: var(--muted);
       font-size: 1rem;
       margin-bottom: 2.5rem;
@@ -158,6 +158,44 @@
     }
 
     .about-card p:last-child { margin-bottom: 0; }
+
+    /* ── EXPERTISE CARDS ────────────────────── */
+    .expertise-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .expertise-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .expertise-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    .expertise-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .expertise-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .expertise-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
 
     /* ── SKILLS ─────────────────────────────── */
     .skills-grid {
@@ -238,6 +276,11 @@
     /* ── RESPONSIVE ─────────────────────────── */
     @media (max-width: 600px) {
       .nav-links { gap: 1.2rem; }
+      .expertise-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 420px) {
+      .expertise-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -248,6 +291,7 @@
     <a href="#hero" class="nav-logo">SS</a>
     <ul class="nav-links">
       <li><a href="#about">About</a></li>
+      <li><a href="#expertise">Expertise</a></li>
       <li><a href="#skills">Skills</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
@@ -255,12 +299,13 @@
 
   <!-- HERO -->
   <section id="hero">
-    <p class="hero-label">Welcome to my portfolio</p>
+    <p class="hero-label">Software Mobile Architect · iOS</p>
     <h1 class="hero-name">Shahbaz Saleem</h1>
-    <p class="hero-title">Software Engineer</p>
+    <p class="hero-title">Designing iOS apps that scale &amp; endure</p>
     <p class="hero-tagline">
-      I build clean, thoughtful software. Passionate about writing code that
-      solves real problems and is easy for others to maintain.
+      I architect robust, high-performance iOS applications — from defining
+      clean code patterns to shipping polished products on the App Store.
+      Swift, SwiftUI, and a relentless focus on quality.
     </p>
     <a href="#contact" class="btn btn-primary">Get in touch</a>
   </section>
@@ -271,18 +316,76 @@
     <div class="section-divider"></div>
     <div class="about-card">
       <p>
-        I'm a software engineer with a passion for building reliable, well-designed
-        applications. I enjoy working across the stack — from crafting intuitive
-        front-ends to designing robust back-end systems.
+        I'm a Software Mobile Architect specializing in iOS, with deep
+        experience designing and delivering production-grade Apple platform
+        applications. I work at the intersection of technical strategy and
+        hands-on engineering — defining scalable architecture, establishing
+        best practices, and guiding teams to build software that lasts.
       </p>
       <p>
-        When I'm not coding, I'm exploring new technologies, contributing to
-        open-source projects, or diving into technical challenges that push my
-        understanding further.
+        My work spans the full iOS lifecycle: from early architectural
+        decisions and Swift codebase design through CI/CD pipelines,
+        App Store submission, and post-launch performance tuning.
+        I'm fluent in modern Apple frameworks — SwiftUI, Combine,
+        async/await — and draw on UIKit's depth when precision matters.
       </p>
       <p>
-        <em style="color: var(--accent);">← Update this section with your real bio once you have content ready.</em>
+        Beyond code, I collaborate closely with product managers, designers,
+        and backend engineers to translate complex requirements into clean,
+        maintainable mobile systems. I care deeply about code review culture,
+        mentorship, and raising the craft bar for the teams I work with.
       </p>
+    </div>
+  </section>
+
+  <!-- EXPERTISE -->
+  <section id="expertise">
+    <h2 class="section-title">What I do</h2>
+    <div class="section-divider"></div>
+    <div class="expertise-grid">
+
+      <div class="expertise-card">
+        <div class="expertise-icon">🏗️</div>
+        <h3>iOS Architecture</h3>
+        <p>Designing scalable, testable codebases using MVVM, VIPER, and
+          Clean Architecture — built to grow with your product.</p>
+      </div>
+
+      <div class="expertise-card">
+        <div class="expertise-icon">⚡</div>
+        <h3>Swift &amp; SwiftUI</h3>
+        <p>Modern, idiomatic Swift with declarative SwiftUI interfaces,
+          Combine data flows, and async/await concurrency.</p>
+      </div>
+
+      <div class="expertise-card">
+        <div class="expertise-icon">🚀</div>
+        <h3>App Store Delivery</h3>
+        <p>End-to-end ownership from Xcode build configurations and
+          code signing to Fastlane automation and App Store Connect.</p>
+      </div>
+
+      <div class="expertise-card">
+        <div class="expertise-icon">🔍</div>
+        <h3>Performance &amp; Quality</h3>
+        <p>Profiling with Instruments, eliminating memory leaks, and
+          building comprehensive XCTest unit and UI test suites.</p>
+      </div>
+
+      <div class="expertise-card">
+        <div class="expertise-icon">👥</div>
+        <h3>Tech Leadership</h3>
+        <p>Mentoring iOS engineers, leading architecture reviews,
+          and defining team-wide coding standards and practices.</p>
+      </div>
+
+      <div class="expertise-card">
+        <div class="expertise-icon">🔗</div>
+        <h3>API &amp; Integration</h3>
+        <p>Integrating REST and GraphQL APIs, push notifications,
+          third-party SDKs, and cloud backends into seamless iOS experiences.</p>
+      </div>
+
     </div>
   </section>
 
@@ -291,18 +394,26 @@
     <h2 class="section-title">Skills</h2>
     <div class="section-divider"></div>
     <div class="skills-grid">
-      <span class="skill-pill">Python</span>
-      <span class="skill-pill">JavaScript</span>
-      <span class="skill-pill">TypeScript</span>
-      <span class="skill-pill">HTML &amp; CSS</span>
-      <span class="skill-pill">React</span>
-      <span class="skill-pill">Node.js</span>
-      <span class="skill-pill">SQL</span>
-      <span class="skill-pill">Git</span>
+      <span class="skill-pill">Swift</span>
+      <span class="skill-pill">SwiftUI</span>
+      <span class="skill-pill">UIKit</span>
+      <span class="skill-pill">Objective-C</span>
+      <span class="skill-pill">Combine</span>
+      <span class="skill-pill">async/await</span>
+      <span class="skill-pill">Core Data</span>
+      <span class="skill-pill">MVVM</span>
+      <span class="skill-pill">VIPER</span>
+      <span class="skill-pill">Clean Architecture</span>
+      <span class="skill-pill">XCTest</span>
+      <span class="skill-pill">Instruments</span>
+      <span class="skill-pill">Xcode</span>
+      <span class="skill-pill">App Store Connect</span>
+      <span class="skill-pill">Fastlane</span>
+      <span class="skill-pill">CI/CD</span>
       <span class="skill-pill">REST APIs</span>
-      <span class="skill-pill">Docker</span>
-      <span class="skill-pill">Linux</span>
-      <span class="skill-pill">Data Analysis</span>
+      <span class="skill-pill">GraphQL</span>
+      <span class="skill-pill">Git</span>
+      <span class="skill-pill">Agile / Scrum</span>
     </div>
   </section>
 
@@ -311,8 +422,8 @@
     <h2 class="section-title">Contact</h2>
     <div class="section-divider"></div>
     <p class="contact-intro">
-      I'm open to opportunities and collaborations. Feel free to reach out
-      through any of the channels below.
+      Open to senior iOS architecture roles, consulting engagements, and
+      technical leadership opportunities. Let's build something great together.
     </p>
     <div class="contact-links">
 
