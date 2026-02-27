@@ -316,7 +316,7 @@
     .price-status {
       display: inline-flex;
       align-items: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.6rem;
       gap: 0.4rem;
       font-size: 0.75rem;
       font-weight: 600;
@@ -324,6 +324,40 @@
       border-radius: 20px;
       white-space: nowrap;
     }
+
+    /* API DEBUG PANEL */
+    #api-debug {
+      margin-bottom: 1.5rem;
+      font-size: 0.78rem;
+    }
+    #api-debug summary {
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0.3rem 0;
+      user-select: none;
+      font-size: 0.78rem;
+    }
+    #api-debug table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-family: monospace;
+    }
+    #api-debug th, #api-debug td {
+      padding: 0.3rem 0.6rem;
+      text-align: left;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    #api-debug th {
+      color: var(--muted);
+      font-weight: 600;
+      background: var(--surface2);
+      font-size: 0.72rem;
+    }
+    #api-debug td:first-child { white-space: nowrap; color: var(--muted); }
+    #api-debug .ok  { color: var(--green); }
+    #api-debug .err { color: var(--red);   }
 
     .price-status--loading {
       background: var(--surface2);
@@ -653,6 +687,16 @@
       <svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
       Fetching live prices…
     </div>
+
+    <details id="api-debug" open>
+      <summary>▸ API debug log</summary>
+      <div id="api-debug-body">
+        <table>
+          <thead><tr><th>Source</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody id="api-debug-rows"><tr><td colspan="3" style="color:var(--muted)">Waiting…</td></tr></tbody>
+        </table>
+      </div>
+    </details>
 
     <!-- NISAB -->
     <div class="nisab-selector">
@@ -996,7 +1040,7 @@
     // Fetch XAU / XAG spot prices in USD per troy oz.
     // Yahoo Finance is the most reliably CORS-accessible free source.
     async function fetchMetalPrices() {
-      // --- Source 1: Yahoo Finance XAUUSD=X + XAGUSD=X (no API key, CORS-enabled) ---
+      // --- Source 1: Yahoo Finance XAUUSD=X + XAGUSD=X ---
       try {
         const [resGold, resSilver] = await Promise.all([
           fetch('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1d&range=1d'),
@@ -1008,14 +1052,19 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          dbg('Yahoo Finance (metals)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
+        } else {
+          dbg('Yahoo Finance (metals)', false, `XAU=${goldOz ?? 'null'}, XAG=${silverOz ?? 'null'}`);
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg('Yahoo Finance (metals)', false, e.message || 'fetch failed');
+      }
 
-      // --- Source 2: metals.live free metals API ---
+      // --- Source 2: metals.live ---
       try {
         const res  = await fetch('https://metals.live/api/v1/spot');
-        if (!res.ok) throw new Error('http ' + res.status);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         let goldOz, silverOz;
         if (Array.isArray(data)) {
@@ -1028,48 +1077,90 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          dbg('metals.live', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
+        } else {
+          dbg('metals.live', false, `XAU=${goldOz ?? 'null'}, XAG=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0, 120)}`);
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg('metals.live', false, e.message || 'fetch failed');
+      }
 
       // --- Source 3: open.er-api XAU/XAG ---
       try {
         const res  = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await res.json();
         if (data.result === 'success' && data.rates?.XAU > 0 && data.rates?.XAG > 0) {
-          goldPriceUSD   = (1 / data.rates.XAU) / TROY_OZ_TO_GRAMS;
-          silverPriceUSD = (1 / data.rates.XAG) / TROY_OZ_TO_GRAMS;
+          const goldOz   = 1 / data.rates.XAU;
+          const silverOz = 1 / data.rates.XAG;
+          goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
+          silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
           if (!liveRates) liveRates = data.rates;
+          dbg('open.er-api (metals)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
+        } else {
+          dbg('open.er-api (metals)', false, `result=${data.result}, XAU=${data.rates?.XAU ?? 'missing'}, XAG=${data.rates?.XAG ?? 'missing'}`);
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg('open.er-api (metals)', false, e.message || 'fetch failed');
+      }
 
       return false; // all sources failed — caller will use FALLBACK_ constants
     }
 
     // Fetch fiat exchange rates vs USD (PKR, GBP, EUR, AED, SAR, CAD, AUD).
     async function fetchFXRates() {
-      if (liveRates?.PKR) return true; // already populated by fetchMetalPrices
+      if (liveRates?.PKR) {
+        dbg('FX rates', true, 'reused from metals fetch');
+        return true;
+      }
 
       try {
         const res  = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await res.json();
         if (data.result === 'success' && data.rates?.PKR > 0) {
           liveRates = data.rates;
+          dbg('open.er-api (FX)', true,
+            `PKR=${data.rates.PKR?.toFixed(2)}, GBP=${data.rates.GBP?.toFixed(4)}, EUR=${data.rates.EUR?.toFixed(4)}, AED=${data.rates.AED?.toFixed(4)}, SAR=${data.rates.SAR?.toFixed(4)}`);
           return true;
+        } else {
+          dbg('open.er-api (FX)', false, `result=${data.result}, PKR=${data.rates?.PKR ?? 'missing'}`);
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg('open.er-api (FX)', false, e.message || 'fetch failed');
+      }
 
       try {
         const res  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await res.json();
         if (data.rates?.PKR > 0) {
           liveRates = data.rates;
+          dbg('exchangerate-api v4 (FX)', true,
+            `PKR=${data.rates.PKR?.toFixed(2)}, GBP=${data.rates.GBP?.toFixed(4)}, EUR=${data.rates.EUR?.toFixed(4)}`);
           return true;
+        } else {
+          dbg('exchangerate-api v4 (FX)', false, `PKR=${data.rates?.PKR ?? 'missing'}`);
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg('exchangerate-api v4 (FX)', false, e.message || 'fetch failed');
+      }
 
       return false;
+    }
+
+    // ── API debug log ─────────────────────────────────────────────────────────
+    const _dbgRows = {};
+    function dbg(key, ok, detail) {
+      _dbgRows[key] = { ok, detail };
+      const tbody = document.getElementById('api-debug-rows');
+      if (!tbody) return;
+      tbody.innerHTML = Object.entries(_dbgRows).map(([k, v]) =>
+        `<tr>
+          <td>${k}</td>
+          <td class="${v.ok ? 'ok' : 'err'}">${v.ok ? '✓ ok' : '✗ fail'}</td>
+          <td>${v.detail}</td>
+        </tr>`
+      ).join('');
     }
 
     function setStatus(type, detail) {
