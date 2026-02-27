@@ -342,6 +342,12 @@
       border: 1px solid var(--gold);
     }
 
+    .price-status--partial {
+      background: #2d2208;
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+
     .price-status--error {
       background: #3d1a1a;
       color: var(--red);
@@ -960,55 +966,120 @@
     // ── Live price fetch ─────────────────────────────────────────────────────
     async function fetchLivePrices() {
       setStatus('loading');
-      try {
-        const res  = await fetch('https://open.er-api.com/v6/latest/USD');
-        const data = await res.json();
-        if (data.result !== 'success') throw new Error('bad response');
 
-        const r = data.rates;
-        if (!r.XAU || !r.XAG) throw new Error('no metals in response');
+      // Run metal-price fetch and FX-rate fetch independently
+      const [metalsOk, fxOk] = await Promise.all([
+        fetchMetalPrices(),
+        fetchFXRates(),
+      ]);
 
-        // XAU = troy oz of gold per 1 USD, so 1/XAU = USD per troy oz
-        goldPriceUSD   = (1 / r.XAU)  / TROY_OZ_TO_GRAMS;
-        silverPriceUSD = (1 / r.XAG)  / TROY_OZ_TO_GRAMS;
-        liveRates      = r;
-
-        const ts = new Date(data.time_last_update_utc || Date.now());
-        setStatus('live', ts.toLocaleDateString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }));
-      } catch (e) {
-        // Try a secondary endpoint
-        try {
-          const res2  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-          const data2 = await res2.json();
-          const r2 = data2.rates || {};
-          if (r2.XAU && r2.XAG) {
-            goldPriceUSD   = (1 / r2.XAU)  / TROY_OZ_TO_GRAMS;
-            silverPriceUSD = (1 / r2.XAG)  / TROY_OZ_TO_GRAMS;
-            liveRates      = r2;
-            setStatus('live', 'secondary source');
-          } else { throw new Error('no XAU'); }
-        } catch {
-          liveRates = null;
-          setStatus('fallback');
-        }
+      if (metalsOk && fxOk) {
+        setStatus('live', new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else if (metalsOk || fxOk) {
+        setStatus('live', (metalsOk ? 'live metals' : 'ref metals') + ' · ' + (fxOk ? 'live FX' : 'ref FX'));
+      } else {
+        setStatus('fallback');
       }
+
       updateMetalPriceDisplay();
       updateNisabUI();
       calculate();
     }
 
+    // Fetch XAU / XAG spot prices in USD per troy oz.
+    // Tries metals.live first, then falls back to er-api XAU/XAG rates.
+    async function fetchMetalPrices() {
+      // --- Source 1: metals.live (purpose-built free metals API) ---
+      try {
+        const res  = await fetch('https://metals.live/api/v1/spot');
+        if (!res.ok) throw new Error('http ' + res.status);
+        const data = await res.json();
+
+        // Response can be an array [{XAU:2345},{XAG:28},...] or a flat object {XAU:2345,XAG:28}
+        let goldOz, silverOz;
+        if (Array.isArray(data)) {
+          goldOz   = data.find(d => d.XAU != null)?.XAU;
+          silverOz = data.find(d => d.XAG != null)?.XAG;
+        } else {
+          goldOz   = data.XAU ?? data.gold ?? data.GOLD;
+          silverOz = data.XAG ?? data.silver ?? data.SILVER;
+        }
+
+        if (goldOz > 0 && silverOz > 0) {
+          goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
+          silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          return true;
+        }
+      } catch (_) {}
+
+      // --- Source 2: open.er-api XAU/XAG (some plans include metals) ---
+      try {
+        const res  = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        if (data.result === 'success' && data.rates?.XAU > 0 && data.rates?.XAG > 0) {
+          goldPriceUSD   = (1 / data.rates.XAU) / TROY_OZ_TO_GRAMS;
+          silverPriceUSD = (1 / data.rates.XAG) / TROY_OZ_TO_GRAMS;
+          if (!liveRates) liveRates = data.rates; // bonus: also cache FX
+          return true;
+        }
+      } catch (_) {}
+
+      // --- Source 3: exchangerate-api.com v4 ---
+      try {
+        const res  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await res.json();
+        if (data.rates?.XAU > 0 && data.rates?.XAG > 0) {
+          goldPriceUSD   = (1 / data.rates.XAU) / TROY_OZ_TO_GRAMS;
+          silverPriceUSD = (1 / data.rates.XAG) / TROY_OZ_TO_GRAMS;
+          if (!liveRates) liveRates = data.rates;
+          return true;
+        }
+      } catch (_) {}
+
+      return false; // all sources failed — caller will use FALLBACK_ constants
+    }
+
+    // Fetch fiat exchange rates vs USD (PKR, GBP, EUR, AED, SAR, CAD, AUD).
+    async function fetchFXRates() {
+      if (liveRates?.PKR) return true; // already populated by fetchMetalPrices
+
+      try {
+        const res  = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        if (data.result === 'success' && data.rates?.PKR > 0) {
+          liveRates = data.rates;
+          return true;
+        }
+      } catch (_) {}
+
+      try {
+        const res  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const data = await res.json();
+        if (data.rates?.PKR > 0) {
+          liveRates = data.rates;
+          return true;
+        }
+      } catch (_) {}
+
+      return false;
+    }
+
     function setStatus(type, detail) {
       const el = document.getElementById('price-status');
+      const dot  = `<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="currentColor"/></svg>`;
+      const info = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
       const icons = {
         loading:  `<svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
-        live:     `<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="var(--green)"/></svg>`,
-        fallback: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
-        error:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`,
+        live:     dot,
+        partial:  info,
+        fallback: info,
+        error:    info,
       };
       const labels = {
         loading:  'Fetching live prices…',
         live:     `Live prices · ${detail || ''}`,
-        fallback: 'API unavailable · reference prices',
+        partial:  `Partial live · ${detail || ''}`,
+        fallback: 'Using reference prices',
         error:    'Price fetch failed',
       };
       el.className = `price-status price-status--${type}`;
