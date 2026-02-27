@@ -312,6 +312,129 @@
       margin-top: 0.3rem;
     }
 
+    /* PRICE STATUS BADGE */
+    .price-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.3rem 0.7rem;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .price-status--loading {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .price-status--live {
+      background: #1a3a24;
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+
+    .price-status--fallback {
+      background: var(--gold-dim);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+
+    .price-status--error {
+      background: #3d1a1a;
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+
+    /* LIVE PRICE DISPLAY (read-only) */
+    .live-price-display {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* METAL FIELD (gold / silver weight + unit toggle + price) */
+    .metal-block { margin-bottom: 1.25rem; }
+    .metal-block:last-child { margin-bottom: 0; }
+
+    .metal-block-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
+
+    .metal-weight-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+      margin-bottom: 0.5rem;
+    }
+
+    .metal-weight-row .input-wrapper { flex: 1; }
+
+    .unit-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .unit-btn {
+      padding: 0.55rem 0.85rem;
+      background: var(--surface2);
+      border: none;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-right: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .unit-btn:last-child { border-right: none; }
+    .unit-btn:hover { color: var(--text); }
+
+    .unit-btn.active {
+      background: var(--accent-dim, #1f6feb);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .price-row label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 110px;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+
+    .price-row .input-wrapper { flex: 1; }
+
+    .metal-separator {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1rem 0;
+    }
+
     /* RESULT PANEL */
     .result-panel {
       position: sticky;
@@ -505,19 +628,23 @@
     </p>
     <div class="section-divider"></div>
 
-    <!-- CURRENCY -->
+    <!-- CURRENCY + PRICE STATUS -->
     <div class="currency-row">
       <label for="currency-select">Currency:</label>
       <select id="currency-select">
-        <option value="PKR" data-symbol="Rs" data-gold="591500" data-silver="6900">Pakistani Rupee (PKR)</option>
-        <option value="USD" data-symbol="$" data-gold="7400" data-silver="86">US Dollar (USD)</option>
-        <option value="GBP" data-symbol="£" data-gold="5850" data-silver="68">British Pound (GBP)</option>
-        <option value="EUR" data-symbol="€" data-gold="6850" data-silver="80">Euro (EUR)</option>
-        <option value="AED" data-symbol="AED" data-gold="27200" data-silver="317">UAE Dirham (AED)</option>
-        <option value="SAR" data-symbol="SAR" data-gold="27750" data-silver="323">Saudi Riyal (SAR)</option>
-        <option value="CAD" data-symbol="CA$" data-gold="10100" data-silver="118">Canadian Dollar (CAD)</option>
-        <option value="AUD" data-symbol="A$" data-gold="11400" data-silver="133">Australian Dollar (AUD)</option>
+        <option value="PKR" data-symbol="Rs"  data-default-unit="tola">Pakistani Rupee (PKR)</option>
+        <option value="USD" data-symbol="$"   data-default-unit="gram">US Dollar (USD)</option>
+        <option value="GBP" data-symbol="£"   data-default-unit="gram">British Pound (GBP)</option>
+        <option value="EUR" data-symbol="€"   data-default-unit="gram">Euro (EUR)</option>
+        <option value="AED" data-symbol="AED" data-default-unit="tola">UAE Dirham (AED)</option>
+        <option value="SAR" data-symbol="SAR" data-default-unit="tola">Saudi Riyal (SAR)</option>
+        <option value="CAD" data-symbol="CA$" data-default-unit="gram">Canadian Dollar (CAD)</option>
+        <option value="AUD" data-symbol="A$"  data-default-unit="gram">Australian Dollar (AUD)</option>
       </select>
+      <div id="price-status" class="price-status price-status--loading">
+        <svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Fetching live prices…
+      </div>
     </div>
 
     <!-- NISAB -->
@@ -525,11 +652,11 @@
       <h2>Nisab Standard</h2>
       <p>Choose which standard to use to determine your Nisab threshold.</p>
       <div class="nisab-tabs">
-        <button class="nisab-tab" data-type="silver">Silver Standard <br><small>612.36g silver</small></button>
-        <button class="nisab-tab active" data-type="gold">Gold Standard <br><small>87.48g gold</small></button>
+        <button class="nisab-tab" data-type="silver">Silver Standard <br><small>612.36g · 52.5 tola</small></button>
+        <button class="nisab-tab active" data-type="gold">Gold Standard <br><small>87.48g · 7.5 tola</small></button>
       </div>
       <div class="nisab-info" id="nisab-info">
-        Nisab: <strong id="nisab-display">—</strong> (87.48g of gold × current gold price)
+        Nisab: <strong id="nisab-display">—</strong>
       </div>
     </div>
 
@@ -570,25 +697,50 @@
             <span class="asset-section-icon">🥇</span>
             <div>
               <div class="asset-section-title">Gold &amp; Silver</div>
-              <div class="asset-section-subtitle">Jewellery, bars, coins — enter weight in grams</div>
+              <div class="asset-section-subtitle">Jewellery, bars, coins</div>
             </div>
           </div>
-          <div class="field">
-            <label for="gold-grams">Gold (grams)</label>
-            <div class="input-wrapper">
-              <span class="input-prefix">g</span>
-              <input type="number" id="gold-grams" placeholder="0" min="0" step="any" />
+
+          <!-- GOLD -->
+          <div class="metal-block">
+            <div class="metal-block-title">Gold</div>
+            <div class="metal-weight-row">
+              <div class="input-wrapper">
+                <span class="input-prefix" id="gold-unit-label">tola</span>
+                <input type="number" id="gold-weight" placeholder="0" min="0" step="any" />
+              </div>
+              <div class="unit-toggle">
+                <button class="unit-btn" data-metal="gold" data-unit="gram">gram</button>
+                <button class="unit-btn active" data-metal="gold" data-unit="tola">tola</button>
+              </div>
             </div>
-            <p class="field-hint">Current price per gram: <strong id="gold-price-display">—</strong></p>
-          </div>
-          <div class="field">
-            <label for="silver-grams">Silver (grams)</label>
-            <div class="input-wrapper">
-              <span class="input-prefix">g</span>
-              <input type="number" id="silver-grams" placeholder="0" min="0" step="any" />
+            <div class="price-row">
+              <label id="gold-price-label">Live price / tola</label>
+              <span class="live-price-display" id="gold-price-display">—</span>
             </div>
-            <p class="field-hint">Current price per gram: <strong id="silver-price-display">—</strong></p>
           </div>
+
+          <hr class="metal-separator" />
+
+          <!-- SILVER -->
+          <div class="metal-block">
+            <div class="metal-block-title">Silver</div>
+            <div class="metal-weight-row">
+              <div class="input-wrapper">
+                <span class="input-prefix" id="silver-unit-label">tola</span>
+                <input type="number" id="silver-weight" placeholder="0" min="0" step="any" />
+              </div>
+              <div class="unit-toggle">
+                <button class="unit-btn" data-metal="silver" data-unit="gram">gram</button>
+                <button class="unit-btn active" data-metal="silver" data-unit="tola">tola</button>
+              </div>
+            </div>
+            <div class="price-row">
+              <label id="silver-price-label">Live price / tola</label>
+              <span class="live-price-display" id="silver-price-display">—</span>
+            </div>
+          </div>
+
         </div>
 
         <!-- INVESTMENTS -->
@@ -678,7 +830,7 @@
         <div class="info-box">
           <h3>How Zakat is calculated</h3>
           <p>Zakat is 2.5% of your total zakatable wealth, provided your net wealth has remained above the Nisab threshold for one full Islamic lunar year (Hawl).</p>
-          <p><strong>Nisab</strong> is the minimum amount of wealth one must possess before they are liable to pay Zakat. It is equivalent to 87.48 grams of gold or 612.36 grams of silver.</p>
+          <p><strong>Nisab</strong> is the minimum wealth threshold before Zakat is due. It equals 87.48g (7.5 tola) of gold or 612.36g (52.5 tola) of silver. Gold and silver prices are fetched live from international spot markets.</p>
           <p>Most scholars recommend using the silver Nisab as it is lower and ensures more people are included. However, using the gold Nisab is also valid.</p>
           <p>Personal items such as your home, car, clothing, and furniture are generally not zakatable.</p>
         </div>
@@ -735,35 +887,68 @@
   </footer>
 
   <script>
-    // ── Data ────────────────────────────────────────────────────────────────
-    // Nisab weights
-    const GOLD_GRAMS_NISAB = 87.48;
-    const SILVER_GRAMS_NISAB = 612.36;
+    // ── Constants ────────────────────────────────────────────────────────────
+    const TROY_OZ_TO_GRAMS = 31.1035;
+    const TOLA_IN_GRAMS    = 11.664;
+    const GOLD_GRAMS_NISAB   = 87.48;   // = 7.5 tola
+    const SILVER_GRAMS_NISAB = 612.36;  // = 52.5 tola
 
-    // Currency data: gold price per gram, silver price per gram (approximate)
-    // Prices embedded as reference; user should verify current prices.
-    const currencies = {};
+    // Fallback prices per gram in USD (used if API fails)
+    const FALLBACK_GOLD_USD_PER_GRAM   = 2900 / TROY_OZ_TO_GRAMS; // ~$93/g
+    const FALLBACK_SILVER_USD_PER_GRAM = 32   / TROY_OZ_TO_GRAMS; // ~$1.03/g
+
+    // Fallback exchange rates vs USD
+    const FALLBACK_RATES = {
+      USD: 1, PKR: 278, GBP: 0.79, EUR: 0.92,
+      AED: 3.67, SAR: 3.75, CAD: 1.43, AUD: 1.60
+    };
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let nisabType  = 'gold';  // 'gold' | 'silver'
+    let currencyKey = 'PKR';
+    let goldUnit   = 'tola';  // 'gram' | 'tola'
+    let silverUnit = 'tola';
+
+    // Prices per gram in USD (populated from API or fallback)
+    let goldPriceUSD   = null;
+    let silverPriceUSD = null;
+    let liveRates      = null; // exchange rates keyed by currency code
+
+    // Currency metadata from select options
+    const currencyMeta = {};
     document.querySelectorAll('#currency-select option').forEach(opt => {
-      currencies[opt.value] = {
-        symbol: opt.dataset.symbol,
-        goldPerGram: parseFloat(opt.dataset.gold),
-        silverPerGram: parseFloat(opt.dataset.silver),
+      currencyMeta[opt.value] = {
+        symbol:      opt.dataset.symbol,
+        defaultUnit: opt.dataset.defaultUnit || 'gram',
       };
     });
 
-    // ── State ────────────────────────────────────────────────────────────────
-    let nisabType = 'gold'; // 'gold' | 'silver'
-    let currencyKey = 'PKR';
-
     // ── Helpers ──────────────────────────────────────────────────────────────
-    function fmt(num) {
-      const c = currencies[currencyKey];
-      return c.symbol + ' ' + Math.round(num).toLocaleString();
+    function sym() { return currencyMeta[currencyKey].symbol; }
+
+    function rate() {
+      const r = liveRates || FALLBACK_RATES;
+      return r[currencyKey] || 1;
     }
 
-    function val(id) {
-      return parseFloat(document.getElementById(id).value) || 0;
+    function goldPerGramLocal()   { return (goldPriceUSD   || FALLBACK_GOLD_USD_PER_GRAM)   * rate(); }
+    function silverPerGramLocal() { return (silverPriceUSD || FALLBACK_SILVER_USD_PER_GRAM) * rate(); }
+
+    function toGrams(weight, unit) {
+      return unit === 'tola' ? weight * TOLA_IN_GRAMS : weight;
     }
+
+    function fmt(num) {
+      return sym() + ' ' + Math.round(num).toLocaleString();
+    }
+
+    function fmtPrice(pricePerGram, unit) {
+      const v = unit === 'tola' ? pricePerGram * TOLA_IN_GRAMS : pricePerGram;
+      const decimals = v < 10 ? 4 : v < 100 ? 2 : 0;
+      return sym() + ' ' + v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
 
     function setPrefix(ids, symbol) {
       ids.forEach(id => {
@@ -772,42 +957,99 @@
       });
     }
 
+    // ── Live price fetch ─────────────────────────────────────────────────────
+    async function fetchLivePrices() {
+      setStatus('loading');
+      try {
+        const res  = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        if (data.result !== 'success') throw new Error('bad response');
+
+        const r = data.rates;
+        if (!r.XAU || !r.XAG) throw new Error('no metals in response');
+
+        // XAU = troy oz of gold per 1 USD, so 1/XAU = USD per troy oz
+        goldPriceUSD   = (1 / r.XAU)  / TROY_OZ_TO_GRAMS;
+        silverPriceUSD = (1 / r.XAG)  / TROY_OZ_TO_GRAMS;
+        liveRates      = r;
+
+        const ts = new Date(data.time_last_update_utc || Date.now());
+        setStatus('live', ts.toLocaleDateString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }));
+      } catch (e) {
+        // Try a secondary endpoint
+        try {
+          const res2  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+          const data2 = await res2.json();
+          const r2 = data2.rates || {};
+          if (r2.XAU && r2.XAG) {
+            goldPriceUSD   = (1 / r2.XAU)  / TROY_OZ_TO_GRAMS;
+            silverPriceUSD = (1 / r2.XAG)  / TROY_OZ_TO_GRAMS;
+            liveRates      = r2;
+            setStatus('live', 'secondary source');
+          } else { throw new Error('no XAU'); }
+        } catch {
+          liveRates = null;
+          setStatus('fallback');
+        }
+      }
+      updateMetalPriceDisplay();
+      updateNisabUI();
+      calculate();
+    }
+
+    function setStatus(type, detail) {
+      const el = document.getElementById('price-status');
+      const icons = {
+        loading:  `<svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
+        live:     `<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" fill="var(--green)"/></svg>`,
+        fallback: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+        error:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`,
+      };
+      const labels = {
+        loading:  'Fetching live prices…',
+        live:     `Live prices · ${detail || ''}`,
+        fallback: 'API unavailable · reference prices',
+        error:    'Price fetch failed',
+      };
+      el.className = `price-status price-status--${type}`;
+      el.innerHTML = (icons[type] || '') + labels[type];
+    }
+
+    // ── Metal price display ───────────────────────────────────────────────────
+    function updateMetalPriceDisplay() {
+      document.getElementById('gold-price-display').textContent   = fmtPrice(goldPerGramLocal(),   goldUnit);
+      document.getElementById('silver-price-display').textContent = fmtPrice(silverPerGramLocal(), silverUnit);
+      document.getElementById('gold-price-label').textContent   = `Live price / ${goldUnit}`;
+      document.getElementById('silver-price-label').textContent = `Live price / ${silverUnit}`;
+      document.getElementById('gold-unit-label').textContent   = goldUnit;
+      document.getElementById('silver-unit-label').textContent = silverUnit;
+    }
+
     // ── Core calculation ──────────────────────────────────────────────────────
     function calculate() {
-      const c = currencies[currencyKey];
+      const goldWeightGrams   = toGrams(val('gold-weight'),   goldUnit);
+      const silverWeightGrams = toGrams(val('silver-weight'), silverUnit);
 
-      // Gold & silver values
-      const goldValue   = val('gold-grams') * c.goldPerGram;
-      const silverValue = val('silver-grams') * c.silverPerGram;
+      const goldValue   = goldWeightGrams   * goldPerGramLocal();
+      const silverValue = silverWeightGrams * silverPerGramLocal();
 
-      // Total assets
       const totalAssets =
-        val('cash') +
-        val('receivables') +
-        goldValue +
-        silverValue +
-        val('stocks') +
-        val('crypto') +
-        val('other-investments') +
-        val('business-inventory') +
-        val('business-cash');
+        val('cash') + val('receivables') +
+        goldValue + silverValue +
+        val('stocks') + val('crypto') + val('other-investments') +
+        val('business-inventory') + val('business-cash');
 
-      // Liabilities
       const totalLiabilities = val('debts') + val('other-liabilities');
-
-      // Net wealth
       const netWealth = Math.max(0, totalAssets - totalLiabilities);
 
-      // Nisab
       const nisabValue = nisabType === 'gold'
-        ? GOLD_GRAMS_NISAB * c.goldPerGram
-        : SILVER_GRAMS_NISAB * c.silverPerGram;
+        ? GOLD_GRAMS_NISAB   * goldPerGramLocal()
+        : SILVER_GRAMS_NISAB * silverPerGramLocal();
 
       const aboveNisab = netWealth >= nisabValue;
       const zakatDue   = aboveNisab ? netWealth * 0.025 : 0;
 
-      // Update display
-      document.getElementById('res-total-assets').textContent     = fmt(totalAssets);
+      document.getElementById('res-total-assets').textContent      = fmt(totalAssets);
       document.getElementById('res-total-liabilities').textContent = fmt(totalLiabilities);
       document.getElementById('res-net-wealth').textContent        = fmt(netWealth);
       document.getElementById('res-nisab').textContent             = fmt(nisabValue);
@@ -816,16 +1058,15 @@
       const statusEl = document.getElementById('nisab-status');
       statusEl.style.display = 'block';
       if (aboveNisab) {
-        statusEl.className = 'result-nisab-status above';
-        statusEl.textContent = '✓ Your wealth is above the Nisab threshold — Zakat is due.';
+        statusEl.className   = 'result-nisab-status above';
+        statusEl.textContent = '✓ Above the Nisab threshold — Zakat is due.';
       } else {
-        statusEl.className = 'result-nisab-status below';
-        statusEl.textContent = '◌ Your wealth is below the Nisab threshold — Zakat is not due.';
+        statusEl.className   = 'result-nisab-status below';
+        statusEl.textContent = '◌ Below the Nisab threshold — Zakat is not due.';
       }
 
       const amountEl = document.getElementById('res-zakat-amount');
       const noteEl   = document.getElementById('res-zakat-note');
-
       if (aboveNisab) {
         amountEl.textContent = fmt(zakatDue);
         amountEl.style.color = 'var(--green)';
@@ -837,25 +1078,34 @@
       }
     }
 
-    // ── UI Updates ────────────────────────────────────────────────────────────
+    // ── Currency UI ──────────────────────────────────────────────────────────
     function updateCurrencyUI() {
-      const c = currencies[currencyKey];
-      const monetaryFields = [
+      const meta = currencyMeta[currencyKey];
+      const monetary = [
         'cash','receivables','stocks','crypto','other-investments',
         'business-inventory','business-cash','debts','other-liabilities'
       ];
-      setPrefix(monetaryFields, c.symbol);
-      document.getElementById('gold-price-display').textContent   = `${c.symbol} ${c.goldPerGram.toLocaleString()}/g`;
-      document.getElementById('silver-price-display').textContent = `${c.symbol} ${c.silverPerGram.toLocaleString()}/g`;
+      setPrefix(monetary, meta.symbol);
+
+      // Set default units for this currency
+      goldUnit   = meta.defaultUnit;
+      silverUnit = meta.defaultUnit;
+
+      // Sync unit toggle buttons
+      document.querySelectorAll('.unit-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.unit === meta.defaultUnit);
+      });
+
+      updateMetalPriceDisplay();
     }
 
+    // ── Nisab info text ───────────────────────────────────────────────────────
     function updateNisabUI() {
-      const c = currencies[currencyKey];
       const infoEl = document.getElementById('nisab-info');
       if (nisabType === 'gold') {
-        infoEl.innerHTML = `Nisab: <strong id="nisab-display">—</strong> (87.48g gold × current gold price)`;
+        infoEl.innerHTML = `Nisab (Gold): <strong id="nisab-display">—</strong> &nbsp;·&nbsp; 87.48g = 7.5 tola of gold`;
       } else {
-        infoEl.innerHTML = `Nisab: <strong id="nisab-display">—</strong> (612.36g silver × current silver price)`;
+        infoEl.innerHTML = `Nisab (Silver): <strong id="nisab-display">—</strong> &nbsp;·&nbsp; 612.36g = 52.5 tola of silver`;
       }
     }
 
@@ -877,6 +1127,23 @@
       });
     });
 
+    document.querySelectorAll('.unit-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const metal = this.dataset.metal; // 'gold' | 'silver'
+        const unit  = this.dataset.unit;  // 'gram' | 'tola'
+
+        // Update active state within this metal's toggle
+        document.querySelectorAll(`.unit-btn[data-metal="${metal}"]`)
+          .forEach(b => b.classList.toggle('active', b === this));
+
+        if (metal === 'gold')   goldUnit   = unit;
+        if (metal === 'silver') silverUnit = unit;
+
+        updateMetalPriceDisplay();
+        calculate();
+      });
+    });
+
     document.querySelectorAll('input[type="number"]').forEach(input => {
       input.addEventListener('input', calculate);
     });
@@ -886,6 +1153,7 @@
     updateCurrencyUI();
     updateNisabUI();
     calculate();
+    fetchLivePrices();
   </script>
 
 </body>
