@@ -1037,12 +1037,26 @@
       }
     }
 
+    // CORS proxy helpers — used because every direct metal API blocks GitHub Pages origin.
+    // corsproxy.io: transparent, returns raw response.
+    // allorigins.win: wraps response in { contents: "..." }.
+    async function proxiedFetch(url) {
+      // Try corsproxy.io first
+      try {
+        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+        if (r.ok) return r;
+      } catch (_) { /* fall through */ }
+      // Fallback: allorigins.win raw (streams the raw body with CORS headers)
+      const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+      if (!r.ok) throw new Error('proxy HTTP ' + r.status);
+      return r;
+    }
+
     // Fetch XAU / XAG spot prices in USD per troy oz.
     async function fetchMetalPrices() {
-      // --- Source 1: goldprice.org public data API (CORS-enabled, no key) ---
+      // --- Source 1: goldprice.org via CORS proxy ---
       try {
-        const res  = await fetch('https://data-asg.goldprice.org/dbXRates/USD');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const res  = await proxiedFetch('https://data-asg.goldprice.org/dbXRates/USD');
         const data = await res.json();
         const item     = data.items?.[0];
         const goldOz   = item?.xauPrice;   // USD per troy oz
@@ -1050,20 +1064,20 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
-          dbg('goldprice.org', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
+          dbg('goldprice.org (proxied)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
         } else {
-          dbg('goldprice.org', false, `xauPrice=${goldOz ?? 'null'}, xagPrice=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0,150)}`);
+          dbg('goldprice.org (proxied)', false, `xauPrice=${goldOz ?? 'null'}, xagPrice=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0,150)}`);
         }
       } catch (e) {
-        dbg('goldprice.org', false, e.message || 'fetch failed');
+        dbg('goldprice.org (proxied)', false, e.message || 'fetch failed');
       }
 
-      // --- Source 2: Yahoo Finance XAUUSD=X + XAGUSD=X ---
+      // --- Source 2: Yahoo Finance via CORS proxy ---
       try {
         const [resGold, resSilver] = await Promise.all([
-          fetch('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1d&range=1d'),
-          fetch('https://query1.finance.yahoo.com/v8/finance/chart/XAGUSD%3DX?interval=1d&range=1d'),
+          proxiedFetch('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=1d&range=1d'),
+          proxiedFetch('https://query1.finance.yahoo.com/v8/finance/chart/XAGUSD=X?interval=1d&range=1d'),
         ]);
         const [dg, ds] = await Promise.all([resGold.json(), resSilver.json()]);
         const goldOz   = dg?.chart?.result?.[0]?.meta?.regularMarketPrice;
@@ -1071,38 +1085,13 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
-          dbg('Yahoo Finance (metals)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
+          dbg('Yahoo Finance (proxied)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
         } else {
-          dbg('Yahoo Finance (metals)', false, `XAU=${goldOz ?? 'null'}, XAG=${silverOz ?? 'null'}`);
+          dbg('Yahoo Finance (proxied)', false, `XAU=${goldOz ?? 'null'}, XAG=${silverOz ?? 'null'}`);
         }
       } catch (e) {
-        dbg('Yahoo Finance (metals)', false, e.message || 'fetch failed');
-      }
-
-      // --- Source 3: metals.live ---
-      try {
-        const res  = await fetch('https://metals.live/api/v1/spot');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        let goldOz, silverOz;
-        if (Array.isArray(data)) {
-          goldOz   = data.find(d => d.XAU != null)?.XAU;
-          silverOz = data.find(d => d.XAG != null)?.XAG;
-        } else {
-          goldOz   = data.XAU ?? data.gold ?? data.GOLD;
-          silverOz = data.XAG ?? data.silver ?? data.SILVER;
-        }
-        if (goldOz > 0 && silverOz > 0) {
-          goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
-          silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
-          dbg('metals.live', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
-          return true;
-        } else {
-          dbg('metals.live', false, `XAU=${goldOz ?? 'null'}, XAG=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0, 120)}`);
-        }
-      } catch (e) {
-        dbg('metals.live', false, e.message || 'fetch failed');
+        dbg('Yahoo Finance (proxied)', false, e.message || 'fetch failed');
       }
 
       // open.er-api confirmed: XAU/XAG not in free tier — skip
