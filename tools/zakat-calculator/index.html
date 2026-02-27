@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zakat Calculator — Shahbaz Saleem Tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --green:     #3fb950;
+      --green-dim: #1a3a24;
+      --gold:      #d29922;
+      --gold-dim:  #2d2208;
+      --red:       #f85149;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+      background: rgba(13, 17, 23, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active { color: var(--accent); }
+
+    /* BREADCRUMB */
+    .breadcrumb {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 1.25rem 2rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .breadcrumb a { color: var(--muted); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--accent); }
+    .breadcrumb span { color: var(--text); }
+
+    /* MAIN */
+    main {
+      flex: 1;
+      max-width: 860px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.5rem 2rem 6rem;
+    }
+
+    .page-label {
+      font-size: 0.85rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+    }
+
+    .page-title {
+      font-size: clamp(1.8rem, 4vw, 2.75rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 0.6rem;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      max-width: 580px;
+      margin-bottom: 2.5rem;
+    }
+
+    .section-divider {
+      width: 48px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin-bottom: 2rem;
+    }
+
+    /* LAYOUT */
+    .calculator-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    /* NISAB SELECTOR */
+    .nisab-selector {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .nisab-selector h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .nisab-selector p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .nisab-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .nisab-tab {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .nisab-tab:hover { border-color: var(--accent); color: var(--text); }
+
+    .nisab-tab.active {
+      background: var(--accent-dim, #1f6feb);
+      border-color: var(--accent);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .nisab-info {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .nisab-info strong { color: var(--text); }
+
+    /* CURRENCY SELECTOR */
+    .currency-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .currency-row label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus { border-color: var(--accent); }
+
+    /* ASSET SECTIONS */
+    .asset-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .asset-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .asset-section-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .asset-section-title {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .asset-section-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* FIELD */
+    .field {
+      margin-bottom: 1rem;
+    }
+
+    .field:last-child { margin-bottom: 0; }
+
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .input-wrapper:focus-within { border-color: var(--accent); }
+
+    .input-prefix {
+      padding: 0.55rem 0.75rem;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .input-wrapper input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 0.55rem 0.75rem;
+      min-width: 0;
+    }
+
+    .input-wrapper input::placeholder { color: var(--muted); opacity: 0.5; }
+
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    /* RESULT PANEL */
+    .result-panel {
+      position: sticky;
+      top: 80px;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .result-card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-card-header h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .result-card-header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .result-body { padding: 1.5rem; }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.5rem 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-row:last-of-type { border-bottom: none; }
+
+    .result-row .label { color: var(--muted); }
+    .result-row .value { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .result-nisab-status {
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .result-nisab-status.above {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+
+    .result-nisab-status.below {
+      background: var(--gold-dim);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+
+    .result-zakat {
+      text-align: center;
+      padding: 1.25rem;
+      background: var(--surface2);
+      border-radius: 10px;
+      margin-top: 1rem;
+    }
+
+    .result-zakat-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .result-zakat-amount {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-zakat-rate {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    .result-zakat-zero {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    /* DISCLAIMER */
+    .disclaimer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      line-height: 1.6;
+    }
+
+    .disclaimer strong { color: var(--gold); }
+
+    /* INFO BOX */
+    .info-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .info-box h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .info-box p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .info-box p:last-child { margin-bottom: 0; }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 720px) {
+      .calculator-layout { grid-template-columns: 1fr; }
+      .result-panel { position: static; }
+      .nav-links { gap: 1.2rem; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-links { gap: 0.9rem; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="../../" class="nav-logo">SS</a>
+    <ul class="nav-links">
+      <li><a href="../../#about">About</a></li>
+      <li><a href="../../#contact">Contact</a></li>
+      <li><a href="../" class="active">Tools</a></li>
+    </ul>
+  </nav>
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="../../">Home</a>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <a href="../">Tools</a>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <span>Zakat Calculator</span>
+  </div>
+
+  <!-- MAIN -->
+  <main>
+    <p class="page-label">Islamic Finance Tool</p>
+    <h1 class="page-title">🌙 Zakat Calculator</h1>
+    <p class="page-subtitle">
+      Enter your zakatable assets below. All calculations happen in your browser — nothing is stored or sent anywhere.
+    </p>
+    <div class="section-divider"></div>
+
+    <!-- CURRENCY -->
+    <div class="currency-row">
+      <label for="currency-select">Currency:</label>
+      <select id="currency-select">
+        <option value="PKR" data-symbol="Rs" data-gold="591500" data-silver="6900">Pakistani Rupee (PKR)</option>
+        <option value="USD" data-symbol="$" data-gold="7400" data-silver="86">US Dollar (USD)</option>
+        <option value="GBP" data-symbol="£" data-gold="5850" data-silver="68">British Pound (GBP)</option>
+        <option value="EUR" data-symbol="€" data-gold="6850" data-silver="80">Euro (EUR)</option>
+        <option value="AED" data-symbol="AED" data-gold="27200" data-silver="317">UAE Dirham (AED)</option>
+        <option value="SAR" data-symbol="SAR" data-gold="27750" data-silver="323">Saudi Riyal (SAR)</option>
+        <option value="CAD" data-symbol="CA$" data-gold="10100" data-silver="118">Canadian Dollar (CAD)</option>
+        <option value="AUD" data-symbol="A$" data-gold="11400" data-silver="133">Australian Dollar (AUD)</option>
+      </select>
+    </div>
+
+    <!-- NISAB -->
+    <div class="nisab-selector">
+      <h2>Nisab Standard</h2>
+      <p>Choose which standard to use to determine your Nisab threshold.</p>
+      <div class="nisab-tabs">
+        <button class="nisab-tab" data-type="silver">Silver Standard <br><small>612.36g silver</small></button>
+        <button class="nisab-tab active" data-type="gold">Gold Standard <br><small>87.48g gold</small></button>
+      </div>
+      <div class="nisab-info" id="nisab-info">
+        Nisab: <strong id="nisab-display">—</strong> (87.48g of gold × current gold price)
+      </div>
+    </div>
+
+    <!-- CALCULATOR LAYOUT -->
+    <div class="calculator-layout">
+      <!-- LEFT: INPUTS -->
+      <div class="inputs-col">
+
+        <!-- CASH & SAVINGS -->
+        <div class="asset-section">
+          <div class="asset-section-header">
+            <span class="asset-section-icon">💵</span>
+            <div>
+              <div class="asset-section-title">Cash &amp; Savings</div>
+              <div class="asset-section-subtitle">Bank accounts, cash at home, digital wallets</div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cash">Cash at hand / bank savings</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-cash">Rs</span>
+              <input type="number" id="cash" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="receivables">Money owed to you (receivables)</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-receivables">Rs</span>
+              <input type="number" id="receivables" placeholder="0" min="0" step="any" />
+            </div>
+            <p class="field-hint">Only include amounts you expect to recover.</p>
+          </div>
+        </div>
+
+        <!-- GOLD & SILVER -->
+        <div class="asset-section">
+          <div class="asset-section-header">
+            <span class="asset-section-icon">🥇</span>
+            <div>
+              <div class="asset-section-title">Gold &amp; Silver</div>
+              <div class="asset-section-subtitle">Jewellery, bars, coins — enter weight in grams</div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="gold-grams">Gold (grams)</label>
+            <div class="input-wrapper">
+              <span class="input-prefix">g</span>
+              <input type="number" id="gold-grams" placeholder="0" min="0" step="any" />
+            </div>
+            <p class="field-hint">Current price per gram: <strong id="gold-price-display">—</strong></p>
+          </div>
+          <div class="field">
+            <label for="silver-grams">Silver (grams)</label>
+            <div class="input-wrapper">
+              <span class="input-prefix">g</span>
+              <input type="number" id="silver-grams" placeholder="0" min="0" step="any" />
+            </div>
+            <p class="field-hint">Current price per gram: <strong id="silver-price-display">—</strong></p>
+          </div>
+        </div>
+
+        <!-- INVESTMENTS -->
+        <div class="asset-section">
+          <div class="asset-section-header">
+            <span class="asset-section-icon">📈</span>
+            <div>
+              <div class="asset-section-title">Investments</div>
+              <div class="asset-section-subtitle">Stocks, mutual funds, crypto, retirement accounts</div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="stocks">Stocks &amp; shares (current market value)</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-stocks">Rs</span>
+              <input type="number" id="stocks" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="crypto">Cryptocurrency (current value)</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-crypto">Rs</span>
+              <input type="number" id="crypto" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="other-investments">Other investments</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-other-investments">Rs</span>
+              <input type="number" id="other-investments" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+        </div>
+
+        <!-- BUSINESS -->
+        <div class="asset-section">
+          <div class="asset-section-header">
+            <span class="asset-section-icon">🏢</span>
+            <div>
+              <div class="asset-section-title">Business Assets</div>
+              <div class="asset-section-subtitle">Stock in trade and liquid business assets</div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="business-inventory">Business inventory / stock in trade</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-business-inventory">Rs</span>
+              <input type="number" id="business-inventory" placeholder="0" min="0" step="any" />
+            </div>
+            <p class="field-hint">Fixed assets (machinery, buildings) are generally not zakatable.</p>
+          </div>
+          <div class="field">
+            <label for="business-cash">Business cash &amp; receivables</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-business-cash">Rs</span>
+              <input type="number" id="business-cash" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+        </div>
+
+        <!-- LIABILITIES -->
+        <div class="asset-section" style="border-color: var(--red);">
+          <div class="asset-section-header">
+            <span class="asset-section-icon">📉</span>
+            <div>
+              <div class="asset-section-title">Liabilities (Deductions)</div>
+              <div class="asset-section-subtitle">Debts and dues payable within the year</div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="debts">Short-term debts &amp; loans due</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-debts">Rs</span>
+              <input type="number" id="debts" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="other-liabilities">Other liabilities due within the year</label>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="prefix-other-liabilities">Rs</span>
+              <input type="number" id="other-liabilities" placeholder="0" min="0" step="any" />
+            </div>
+          </div>
+        </div>
+
+        <!-- INFO -->
+        <div class="info-box">
+          <h3>How Zakat is calculated</h3>
+          <p>Zakat is 2.5% of your total zakatable wealth, provided your net wealth has remained above the Nisab threshold for one full Islamic lunar year (Hawl).</p>
+          <p><strong>Nisab</strong> is the minimum amount of wealth one must possess before they are liable to pay Zakat. It is equivalent to 87.48 grams of gold or 612.36 grams of silver.</p>
+          <p>Most scholars recommend using the silver Nisab as it is lower and ensures more people are included. However, using the gold Nisab is also valid.</p>
+          <p>Personal items such as your home, car, clothing, and furniture are generally not zakatable.</p>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: RESULT PANEL -->
+      <div class="result-panel">
+        <div class="result-card">
+          <div class="result-card-header">
+            <h2>Your Zakat Summary</h2>
+            <p>Updates in real time as you type</p>
+          </div>
+          <div class="result-body">
+
+            <div class="result-row">
+              <span class="label">Total assets</span>
+              <span class="value" id="res-total-assets">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Total liabilities</span>
+              <span class="value" id="res-total-liabilities" style="color:var(--red)">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Net zakatable wealth</span>
+              <span class="value" id="res-net-wealth">—</span>
+            </div>
+            <div class="result-row">
+              <span class="label">Nisab threshold</span>
+              <span class="value" id="res-nisab">—</span>
+            </div>
+
+            <div class="result-nisab-status" id="nisab-status" style="display:none"></div>
+
+            <div class="result-zakat" id="zakat-result-box">
+              <div class="result-zakat-label">Zakat Due (2.5%)</div>
+              <div class="result-zakat-amount" id="res-zakat-amount">—</div>
+              <div class="result-zakat-rate" id="res-zakat-note"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="disclaimer">
+          <strong>Disclaimer:</strong> This calculator provides an estimate for educational purposes only. Gold and silver prices are approximate reference values and may differ from actual market rates. Please verify current spot prices and consult a qualified Islamic scholar or financial advisor for your specific situation.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>&copy; <span id="year"></span> <a href="../../">Shahbaz Saleem</a> · <a href="../">All Tools</a></p>
+  </footer>
+
+  <script>
+    // ── Data ────────────────────────────────────────────────────────────────
+    // Nisab weights
+    const GOLD_GRAMS_NISAB = 87.48;
+    const SILVER_GRAMS_NISAB = 612.36;
+
+    // Currency data: gold price per gram, silver price per gram (approximate)
+    // Prices embedded as reference; user should verify current prices.
+    const currencies = {};
+    document.querySelectorAll('#currency-select option').forEach(opt => {
+      currencies[opt.value] = {
+        symbol: opt.dataset.symbol,
+        goldPerGram: parseFloat(opt.dataset.gold),
+        silverPerGram: parseFloat(opt.dataset.silver),
+      };
+    });
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let nisabType = 'gold'; // 'gold' | 'silver'
+    let currencyKey = 'PKR';
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function fmt(num) {
+      const c = currencies[currencyKey];
+      return c.symbol + ' ' + Math.round(num).toLocaleString();
+    }
+
+    function val(id) {
+      return parseFloat(document.getElementById(id).value) || 0;
+    }
+
+    function setPrefix(ids, symbol) {
+      ids.forEach(id => {
+        const el = document.getElementById('prefix-' + id);
+        if (el) el.textContent = symbol;
+      });
+    }
+
+    // ── Core calculation ──────────────────────────────────────────────────────
+    function calculate() {
+      const c = currencies[currencyKey];
+
+      // Gold & silver values
+      const goldValue   = val('gold-grams') * c.goldPerGram;
+      const silverValue = val('silver-grams') * c.silverPerGram;
+
+      // Total assets
+      const totalAssets =
+        val('cash') +
+        val('receivables') +
+        goldValue +
+        silverValue +
+        val('stocks') +
+        val('crypto') +
+        val('other-investments') +
+        val('business-inventory') +
+        val('business-cash');
+
+      // Liabilities
+      const totalLiabilities = val('debts') + val('other-liabilities');
+
+      // Net wealth
+      const netWealth = Math.max(0, totalAssets - totalLiabilities);
+
+      // Nisab
+      const nisabValue = nisabType === 'gold'
+        ? GOLD_GRAMS_NISAB * c.goldPerGram
+        : SILVER_GRAMS_NISAB * c.silverPerGram;
+
+      const aboveNisab = netWealth >= nisabValue;
+      const zakatDue   = aboveNisab ? netWealth * 0.025 : 0;
+
+      // Update display
+      document.getElementById('res-total-assets').textContent     = fmt(totalAssets);
+      document.getElementById('res-total-liabilities').textContent = fmt(totalLiabilities);
+      document.getElementById('res-net-wealth').textContent        = fmt(netWealth);
+      document.getElementById('res-nisab').textContent             = fmt(nisabValue);
+      document.getElementById('nisab-display').textContent         = fmt(nisabValue);
+
+      const statusEl = document.getElementById('nisab-status');
+      statusEl.style.display = 'block';
+      if (aboveNisab) {
+        statusEl.className = 'result-nisab-status above';
+        statusEl.textContent = '✓ Your wealth is above the Nisab threshold — Zakat is due.';
+      } else {
+        statusEl.className = 'result-nisab-status below';
+        statusEl.textContent = '◌ Your wealth is below the Nisab threshold — Zakat is not due.';
+      }
+
+      const amountEl = document.getElementById('res-zakat-amount');
+      const noteEl   = document.getElementById('res-zakat-note');
+
+      if (aboveNisab) {
+        amountEl.textContent = fmt(zakatDue);
+        amountEl.style.color = 'var(--green)';
+        noteEl.textContent   = '2.5% × ' + fmt(netWealth) + ' net wealth';
+      } else {
+        amountEl.textContent = fmt(0);
+        amountEl.style.color = 'var(--muted)';
+        noteEl.textContent   = 'Wealth is below Nisab — no Zakat required';
+      }
+    }
+
+    // ── UI Updates ────────────────────────────────────────────────────────────
+    function updateCurrencyUI() {
+      const c = currencies[currencyKey];
+      const monetaryFields = [
+        'cash','receivables','stocks','crypto','other-investments',
+        'business-inventory','business-cash','debts','other-liabilities'
+      ];
+      setPrefix(monetaryFields, c.symbol);
+      document.getElementById('gold-price-display').textContent   = `${c.symbol} ${c.goldPerGram.toLocaleString()}/g`;
+      document.getElementById('silver-price-display').textContent = `${c.symbol} ${c.silverPerGram.toLocaleString()}/g`;
+    }
+
+    function updateNisabUI() {
+      const c = currencies[currencyKey];
+      const infoEl = document.getElementById('nisab-info');
+      if (nisabType === 'gold') {
+        infoEl.innerHTML = `Nisab: <strong id="nisab-display">—</strong> (87.48g gold × current gold price)`;
+      } else {
+        infoEl.innerHTML = `Nisab: <strong id="nisab-display">—</strong> (612.36g silver × current silver price)`;
+      }
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────────
+    document.getElementById('currency-select').addEventListener('change', function () {
+      currencyKey = this.value;
+      updateCurrencyUI();
+      updateNisabUI();
+      calculate();
+    });
+
+    document.querySelectorAll('.nisab-tab').forEach(btn => {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.nisab-tab').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        nisabType = this.dataset.type;
+        updateNisabUI();
+        calculate();
+      });
+    });
+
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+      input.addEventListener('input', calculate);
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    document.getElementById('year').textContent = new Date().getFullYear();
+    updateCurrencyUI();
+    updateNisabUI();
+    calculate();
+  </script>
+
+</body>
+</html>
