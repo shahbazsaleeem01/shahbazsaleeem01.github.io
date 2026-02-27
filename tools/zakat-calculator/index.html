@@ -968,11 +968,21 @@
     async function fetchLivePrices() {
       setStatus('loading');
 
-      // Run metal-price fetch and FX-rate fetch independently
-      const [metalsOk, fxOk] = await Promise.all([
-        fetchMetalPrices(),
-        fetchFXRates(),
-      ]);
+      let metalsOk = false;
+      let fxOk     = false;
+
+      // Refresh UI immediately whenever either fetch resolves
+      function refresh() {
+        updateMetalPriceDisplay();
+        updateNisabUI();
+        calculate();
+      }
+
+      const metalsP = fetchMetalPrices().then(ok => { metalsOk = ok; refresh(); });
+      const fxP     = fetchFXRates().then(ok  => { fxOk     = ok; refresh(); });
+
+      // Wait for both, then set final status
+      await Promise.allSettled([metalsP, fxP]);
 
       if (metalsOk && fxOk) {
         setStatus('live', new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -981,10 +991,6 @@
       } else {
         setStatus('fallback');
       }
-
-      updateMetalPriceDisplay();
-      updateNisabUI();
-      calculate();
     }
 
     // Fetch XAU / XAG spot prices in USD per troy oz.
