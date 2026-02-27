@@ -1038,9 +1038,28 @@
     }
 
     // Fetch XAU / XAG spot prices in USD per troy oz.
-    // Yahoo Finance is the most reliably CORS-accessible free source.
     async function fetchMetalPrices() {
-      // --- Source 1: Yahoo Finance XAUUSD=X + XAGUSD=X ---
+      // --- Source 1: goldprice.org public data API (CORS-enabled, no key) ---
+      try {
+        const res  = await fetch('https://data-asg.goldprice.org/dbXRates/USD');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const item     = data.items?.[0];
+        const goldOz   = item?.xauPrice;   // USD per troy oz
+        const silverOz = item?.xagPrice;   // USD per troy oz
+        if (goldOz > 0 && silverOz > 0) {
+          goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
+          silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          dbg('goldprice.org', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
+          return true;
+        } else {
+          dbg('goldprice.org', false, `xauPrice=${goldOz ?? 'null'}, xagPrice=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0,150)}`);
+        }
+      } catch (e) {
+        dbg('goldprice.org', false, e.message || 'fetch failed');
+      }
+
+      // --- Source 2: Yahoo Finance XAUUSD=X + XAGUSD=X ---
       try {
         const [resGold, resSilver] = await Promise.all([
           fetch('https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?interval=1d&range=1d'),
@@ -1061,7 +1080,7 @@
         dbg('Yahoo Finance (metals)', false, e.message || 'fetch failed');
       }
 
-      // --- Source 2: metals.live ---
+      // --- Source 3: metals.live ---
       try {
         const res  = await fetch('https://metals.live/api/v1/spot');
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1086,24 +1105,8 @@
         dbg('metals.live', false, e.message || 'fetch failed');
       }
 
-      // --- Source 3: open.er-api XAU/XAG ---
-      try {
-        const res  = await fetch('https://open.er-api.com/v6/latest/USD');
-        const data = await res.json();
-        if (data.result === 'success' && data.rates?.XAU > 0 && data.rates?.XAG > 0) {
-          const goldOz   = 1 / data.rates.XAU;
-          const silverOz = 1 / data.rates.XAG;
-          goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
-          silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
-          if (!liveRates) liveRates = data.rates;
-          dbg('open.er-api (metals)', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
-          return true;
-        } else {
-          dbg('open.er-api (metals)', false, `result=${data.result}, XAU=${data.rates?.XAU ?? 'missing'}, XAG=${data.rates?.XAG ?? 'missing'}`);
-        }
-      } catch (e) {
-        dbg('open.er-api (metals)', false, e.message || 'fetch failed');
-      }
+      // open.er-api confirmed: XAU/XAG not in free tier — skip
+      dbg('open.er-api (metals)', false, 'XAU/XAG not included in free tier — skipped');
 
       return false; // all sources failed — caller will use FALLBACK_ constants
     }
