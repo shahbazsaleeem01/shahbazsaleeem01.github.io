@@ -638,6 +638,75 @@
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
 
+    /* GOLD ENTRIES (multi-karat) */
+    .metal-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+
+    .add-entry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.7rem;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .add-entry-btn:hover {
+      background: var(--accent-dim, #1f6feb);
+      color: var(--text);
+    }
+
+    .gold-entry { margin-bottom: 0.6rem; }
+
+    .gold-entry-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: stretch;
+    }
+
+    .gold-entry-row .input-wrapper { flex: 1; min-width: 0; }
+
+    .karat-select {
+      flex-shrink: 0;
+      width: 86px;
+      padding: 0.5rem 0.4rem;
+      font-size: 0.82rem;
+    }
+
+    .remove-entry-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .remove-entry-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .gold-entry-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      padding-left: 0.2rem;
+      min-height: 1.1em;
+    }
+
     /* MOBILE STICKY RESULT BAR */
     .mobile-result-bar {
       display: none;
@@ -687,6 +756,9 @@
       select { min-height: 44px; }
       .unit-btn { min-height: 44px; padding: 0 0.85rem; }
       .nisab-tab { min-height: 48px; }
+      .karat-select { min-height: 44px; }
+      .remove-entry-btn { min-height: 44px; width: 44px; }
+      .add-entry-btn { min-height: 36px; padding: 0 0.9rem; }
     }
 
     @media (max-width: 540px) {
@@ -711,6 +783,8 @@
       .metal-weight-row { gap: 0.35rem; }
       .unit-btn { font-size: 0.75rem; padding: 0 0.6rem; }
       .mobile-result-bar { padding: 0.65rem 1rem; }
+      .karat-select { width: 72px; font-size: 0.78rem; }
+      .gold-entry-row { gap: 0.3rem; }
     }
   </style>
 </head>
@@ -819,21 +893,15 @@
             </div>
           </div>
 
-          <!-- GOLD -->
+          <!-- GOLD (multi-karat) -->
           <div class="metal-block">
-            <div class="metal-block-title">Gold</div>
-            <div class="metal-weight-row">
-              <div class="input-wrapper">
-                <span class="input-prefix" id="gold-unit-label">tola</span>
-                <input type="number" id="gold-weight" placeholder="0" min="0" step="any" />
-              </div>
-              <div class="unit-toggle">
-                <button class="unit-btn" data-metal="gold" data-unit="gram">gram</button>
-                <button class="unit-btn active" data-metal="gold" data-unit="tola">tola</button>
-              </div>
+            <div class="metal-block-header">
+              <div class="metal-block-title">Gold</div>
+              <button id="add-gold-btn" class="add-entry-btn" type="button">+ Add karat</button>
             </div>
-            <div class="price-row">
-              <label id="gold-price-label">Live price / tola</label>
+            <div id="gold-entries"><!-- populated by JS --></div>
+            <div class="price-row" style="margin-top:0.25rem">
+              <label id="gold-price-label">Ref price / tola (24K)</label>
               <span class="live-price-display" id="gold-price-display">—</span>
             </div>
           </div>
@@ -1030,11 +1098,17 @@
       AED: 3.67, SAR: 3.75, CAD: 1.43, AUD: 1.60
     };
 
+    // Supported karats (karat / 24 = pure-gold fraction)
+    const KARATS = [24, 22, 21, 20, 18, 14, 12, 10, 9];
+
     // ── State ────────────────────────────────────────────────────────────────
-    let nisabType  = 'gold';  // 'gold' | 'silver'
+    let nisabType   = 'gold';  // 'gold' | 'silver'
     let currencyKey = 'PKR';
-    let goldUnit   = 'tola';  // 'gram' | 'tola'
-    let silverUnit = 'tola';
+    let silverUnit  = 'tola';  // gold unit is now stored per-entry
+
+    // Gold entries array — each: { id, karat, unit }
+    let goldEntries = [];
+    let nextGoldId  = 0;
 
     // Prices per gram in USD (populated from API or fallback)
     let goldPriceUSD   = null;
@@ -1084,15 +1158,23 @@
       });
     }
 
-    // ── CORS proxy (all metal APIs block GitHub Pages origin) ────────────────
-    async function proxiedFetch(url) {
-      try {
-        const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
-        if (r.ok) return r;
-      } catch (_) { /* fall through */ }
-      const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-      if (!r.ok) throw new Error('proxy HTTP ' + r.status);
-      return r;
+    // ── CORS proxy — races both proxies simultaneously with 10 s timeout ─────
+    async function proxiedFetch(url, timeoutMs = 10000) {
+      const attempt = async (proxyUrl) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+          const r = await fetch(proxyUrl, { signal: ctrl.signal });
+          clearTimeout(t);
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r;
+        } catch (e) { clearTimeout(t); throw e; }
+      };
+      // Promise.any resolves with the first success; throws AggregateError if all fail
+      return Promise.any([
+        attempt('https://corsproxy.io/?' + encodeURIComponent(url)),
+        attempt('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
+      ]);
     }
 
     // ── Live price fetch ─────────────────────────────────────────────────────
@@ -1103,6 +1185,7 @@
 
       function refresh() {
         updateMetalPriceDisplay();
+        updateAllGoldHints();
         updateRatesPanel();
         updateNisabUI();
         calculate();
@@ -1244,23 +1327,124 @@
       panel.innerHTML = chips.join('');
     }
 
+    // ── Gold entry management (multi-karat) ──────────────────────────────────
+    function addGoldEntry(karat, unit) {
+      const id = nextGoldId++;
+      const u  = unit || currencyMeta[currencyKey].defaultUnit;
+      goldEntries.push({ id, karat: karat || 22, unit: u });
+      buildGoldEntryDOM(id, karat || 22, u);
+      attachGoldEntryEvents(id);
+      updateRemoveButtons();
+    }
+
+    function buildGoldEntryDOM(id, karat, unit) {
+      const opts = KARATS.map(k =>
+        `<option value="${k}"${k === karat ? ' selected' : ''}>${k}K${k === 24 ? ' (pure)' : ''}</option>`
+      ).join('');
+      document.getElementById('gold-entries').insertAdjacentHTML('beforeend', `
+        <div class="gold-entry" data-gold-id="${id}">
+          <div class="gold-entry-row">
+            <select class="karat-select" id="gold-karat-${id}">${opts}</select>
+            <div class="input-wrapper">
+              <span class="input-prefix" id="gold-unit-prefix-${id}">${unit}</span>
+              <input type="number" id="gold-weight-${id}" class="gold-weight-input"
+                     placeholder="0" min="0" step="any" />
+            </div>
+            <div class="unit-toggle">
+              <button class="unit-btn${unit === 'gram' ? ' active' : ''}" data-gold-entry="${id}" data-unit="gram">gram</button>
+              <button class="unit-btn${unit === 'tola' ? ' active' : ''}" data-gold-entry="${id}" data-unit="tola">tola</button>
+            </div>
+            <button class="remove-entry-btn" data-remove-gold="${id}" type="button" title="Remove">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="gold-entry-hint" id="gold-hint-${id}"></div>
+        </div>`);
+    }
+
+    function attachGoldEntryEvents(id) {
+      const entry = goldEntries.find(e => e.id === id);
+      document.getElementById(`gold-weight-${id}`)
+        ?.addEventListener('input', () => { updateGoldHint(id); calculate(); });
+      document.getElementById(`gold-karat-${id}`)
+        ?.addEventListener('change', function () {
+          entry.karat = parseInt(this.value);
+          updateGoldHint(id); updateMetalPriceDisplay(); calculate();
+        });
+      document.querySelectorAll(`[data-gold-entry="${id}"]`).forEach(btn => {
+        btn.addEventListener('click', function () {
+          entry.unit = this.dataset.unit;
+          document.querySelectorAll(`[data-gold-entry="${id}"]`)
+            .forEach(b => b.classList.toggle('active', b === this));
+          document.getElementById(`gold-unit-prefix-${id}`).textContent = entry.unit;
+          updateGoldHint(id); calculate();
+        });
+      });
+      document.querySelector(`[data-remove-gold="${id}"]`)
+        ?.addEventListener('click', () => removeGoldEntry(id));
+    }
+
+    function removeGoldEntry(id) {
+      goldEntries = goldEntries.filter(e => e.id !== id);
+      document.querySelector(`[data-gold-id="${id}"]`)?.remove();
+      updateRemoveButtons();
+      calculate();
+    }
+
+    function updateRemoveButtons() {
+      const isOnly = goldEntries.length === 1;
+      goldEntries.forEach(e => {
+        const btn = document.querySelector(`[data-remove-gold="${e.id}"]`);
+        if (btn) btn.style.visibility = isOnly ? 'hidden' : 'visible';
+      });
+    }
+
+    function getGoldValue() {
+      return goldEntries.reduce((sum, entry) => {
+        const weight = parseFloat(document.getElementById(`gold-weight-${entry.id}`)?.value) || 0;
+        const grams  = entry.unit === 'tola' ? weight * TOLA_IN_GRAMS : weight;
+        return sum + grams * (entry.karat / 24) * goldPerGramLocal();
+      }, 0);
+    }
+
+    function updateGoldHint(id) {
+      const entry  = goldEntries.find(e => e.id === id);
+      const hintEl = document.getElementById(`gold-hint-${id}`);
+      if (!entry || !hintEl) return;
+      const weight = parseFloat(document.getElementById(`gold-weight-${id}`)?.value) || 0;
+      if (weight <= 0) { hintEl.textContent = ''; return; }
+      const grams     = entry.unit === 'tola' ? weight * TOLA_IN_GRAMS : weight;
+      const pureGrams = grams * (entry.karat / 24);
+      const pureTola  = pureGrams / TOLA_IN_GRAMS;
+      const value     = pureGrams * goldPerGramLocal();
+      hintEl.textContent =
+        `≈ ${pureTola.toFixed(3)} tola pure gold · ${fmt(Math.round(value))}`;
+    }
+
+    function updateAllGoldHints() {
+      goldEntries.forEach(e => updateGoldHint(e.id));
+    }
+
     // ── Metal price display ───────────────────────────────────────────────────
     function updateMetalPriceDisplay() {
-      document.getElementById('gold-price-display').textContent   = fmtPrice(goldPerGramLocal(),   goldUnit);
+      const label = goldPriceUSD ? 'Live price' : 'Ref price';
+      // Gold: always show pure (24K) price in the unit of the first entry
+      const gUnit = goldEntries[0]?.unit || 'tola';
+      document.getElementById('gold-price-display').textContent = fmtPrice(goldPerGramLocal(), gUnit);
+      document.getElementById('gold-price-label').textContent   = `${label} / ${gUnit} (24K)`;
+      // Silver
       document.getElementById('silver-price-display').textContent = fmtPrice(silverPerGramLocal(), silverUnit);
-      const metalLabel = goldPriceUSD ? 'Live price' : 'Ref price';
-      document.getElementById('gold-price-label').textContent   = `${metalLabel} / ${goldUnit}`;
-      document.getElementById('silver-price-label').textContent = `${metalLabel} / ${silverUnit}`;
-      document.getElementById('gold-unit-label').textContent   = goldUnit;
-      document.getElementById('silver-unit-label').textContent = silverUnit;
+      document.getElementById('silver-price-label').textContent   = `${label} / ${silverUnit}`;
+      document.getElementById('silver-unit-label').textContent    = silverUnit;
+      updateAllGoldHints();
     }
 
     // ── Core calculation ──────────────────────────────────────────────────────
     function calculate() {
-      const goldWeightGrams   = toGrams(val('gold-weight'),   goldUnit);
+      const goldValue   = getGoldValue();   // sums all karat entries × pure-gold fraction
       const silverWeightGrams = toGrams(val('silver-weight'), silverUnit);
-
-      const goldValue   = goldWeightGrams   * goldPerGramLocal();
       const silverValue = silverWeightGrams * silverPerGramLocal();
 
       const totalAssets =
@@ -1324,12 +1508,19 @@
       ];
       setPrefix(monetary, meta.symbol);
 
-      goldUnit   = meta.defaultUnit;
-      silverUnit = meta.defaultUnit;
-
-      document.querySelectorAll('.unit-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.unit === meta.defaultUnit);
+      // Update each gold entry's unit to match the new currency's default
+      goldEntries.forEach(entry => {
+        entry.unit = meta.defaultUnit;
+        document.querySelectorAll(`[data-gold-entry="${entry.id}"]`)
+          .forEach(b => b.classList.toggle('active', b.dataset.unit === meta.defaultUnit));
+        const prefix = document.getElementById(`gold-unit-prefix-${entry.id}`);
+        if (prefix) prefix.textContent = meta.defaultUnit;
       });
+
+      // Silver unit
+      silverUnit = meta.defaultUnit;
+      document.querySelectorAll('.unit-btn[data-metal="silver"]')
+        .forEach(btn => btn.classList.toggle('active', btn.dataset.unit === meta.defaultUnit));
 
       updateMetalPriceDisplay();
       updateRatesPanel();
@@ -1363,18 +1554,19 @@
       });
     });
 
-    document.querySelectorAll('.unit-btn').forEach(btn => {
+    // Silver unit buttons (gold unit buttons are wired per-entry in attachGoldEntryEvents)
+    document.querySelectorAll('.unit-btn[data-metal="silver"]').forEach(btn => {
       btn.addEventListener('click', function () {
-        const metal = this.dataset.metal;
-        const unit  = this.dataset.unit;
-        document.querySelectorAll(`.unit-btn[data-metal="${metal}"]`)
+        const unit = this.dataset.unit;
+        document.querySelectorAll('.unit-btn[data-metal="silver"]')
           .forEach(b => b.classList.toggle('active', b === this));
-        if (metal === 'gold')   goldUnit   = unit;
-        if (metal === 'silver') silverUnit = unit;
+        silverUnit = unit;
         updateMetalPriceDisplay();
         calculate();
       });
     });
+
+    document.getElementById('add-gold-btn').addEventListener('click', () => addGoldEntry());
 
     document.querySelectorAll('input[type="number"]').forEach(input => {
       input.addEventListener('input', calculate);
@@ -1382,6 +1574,7 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     document.getElementById('year').textContent = new Date().getFullYear();
+    addGoldEntry(22); // seed with one 22K entry (most common jewellery karat)
     updateCurrencyUI();
     updateNisabUI();
     updateRatesPanel();
