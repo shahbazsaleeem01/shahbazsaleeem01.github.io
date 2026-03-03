@@ -707,6 +707,33 @@
       min-height: 1.1em;
     }
 
+    /* API DEBUG PANEL — injected by JS only when ?debug is in URL */
+    #api-debug {
+      margin-bottom: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem 0.75rem;
+      font-size: 0.76rem;
+    }
+    #api-debug summary {
+      cursor: pointer; color: var(--muted);
+      user-select: none; padding: 0.1rem 0;
+    }
+    #api-debug table {
+      width: 100%; border-collapse: collapse;
+      margin-top: 0.5rem; font-family: monospace;
+    }
+    #api-debug th, #api-debug td {
+      padding: 0.25rem 0.5rem; text-align: left;
+      border: 1px solid var(--border); vertical-align: top;
+    }
+    #api-debug th { color: var(--muted); font-weight: 600; background: var(--surface2); }
+    #api-debug td:first-child { white-space: nowrap; color: var(--muted); }
+    #api-debug .ok  { color: var(--green); font-weight: 600; }
+    #api-debug .err { color: var(--red);   font-weight: 600; }
+    #api-debug td:last-child { word-break: break-all; max-width: 340px; }
+
     /* MOBILE STICKY RESULT BAR */
     .mobile-result-bar {
       display: none;
@@ -1101,6 +1128,9 @@
     // Supported karats (karat / 24 = pure-gold fraction)
     const KARATS = [24, 22, 21, 20, 18, 14, 12, 10, 9];
 
+    // Debug mode — add ?debug to URL to reveal the API debug table
+    const DEBUG = new URLSearchParams(location.search).has('debug');
+
     // ── State ────────────────────────────────────────────────────────────────
     let nisabType   = 'gold';  // 'gold' | 'silver'
     let currencyKey = 'PKR';
@@ -1158,23 +1188,49 @@
       });
     }
 
+    // ── Debug log (no-op unless ?debug in URL) ───────────────────────────────
+    const _dbgRows = {};
+    function dbg(key, ok, detail) {
+      if (!DEBUG) return;
+      _dbgRows[key] = { ok, detail };
+      const tbody = document.getElementById('api-debug-rows');
+      if (!tbody) return;
+      tbody.innerHTML = Object.entries(_dbgRows).map(([k, v]) => `
+        <tr>
+          <td>${k}</td>
+          <td class="${v.ok ? 'ok' : 'err'}">${v.ok ? '✓ ok' : '✗ fail'}</td>
+          <td>${String(v.detail).slice(0, 400)}</td>
+        </tr>`).join('');
+    }
+
     // ── CORS proxy — races both proxies simultaneously with 10 s timeout ─────
     async function proxiedFetch(url, timeoutMs = 10000) {
-      const attempt = async (proxyUrl) => {
+      const log = [];
+      const attempt = async (name, proxyUrl) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), timeoutMs);
         try {
           const r = await fetch(proxyUrl, { signal: ctrl.signal });
           clearTimeout(t);
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (!r.ok) { log.push(`${name}→HTTP ${r.status}`); throw new Error('HTTP ' + r.status); }
+          log.push(`${name}→ok(${r.status})`);
           return r;
-        } catch (e) { clearTimeout(t); throw e; }
+        } catch (e) {
+          clearTimeout(t);
+          log.push(`${name}→${e.name === 'AbortError' ? 'timeout' : e.message}`);
+          throw e;
+        }
       };
-      // Promise.any resolves with the first success; throws AggregateError if all fail
+      // Race all proxies; first successful response wins
       return Promise.any([
-        attempt('https://corsproxy.io/?' + encodeURIComponent(url)),
-        attempt('https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
-      ]);
+        attempt('cors.io', 'https://corsproxy.io/?' + encodeURIComponent(url)),
+        attempt('allorigins', 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)),
+        attempt('codetabs', 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url)),
+      ]).catch(() => {
+        const err = new Error(log.join(' | '));
+        err.proxyLog = log;
+        throw err;
+      });
     }
 
     // ── Live price fetch ─────────────────────────────────────────────────────
@@ -1217,9 +1273,13 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          dbg('goldprice.org', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
         }
-      } catch (_) { /* fall through */ }
+        dbg('goldprice.org', false, `xauPrice=${goldOz ?? 'null'} xagPrice=${silverOz ?? 'null'} · raw: ${JSON.stringify(data).slice(0, 200)}`);
+      } catch (e) {
+        dbg('goldprice.org', false, e.message);
+      }
 
       // Source 2: Yahoo Finance via CORS proxy
       try {
@@ -1233,32 +1293,49 @@
         if (goldOz > 0 && silverOz > 0) {
           goldPriceUSD   = goldOz   / TROY_OZ_TO_GRAMS;
           silverPriceUSD = silverOz / TROY_OZ_TO_GRAMS;
+          dbg('Yahoo Finance', true, `XAU $${goldOz.toFixed(2)}/oz · XAG $${silverOz.toFixed(3)}/oz`);
           return true;
         }
-      } catch (_) { /* fall through */ }
+        dbg('Yahoo Finance', false, `XAU=${goldOz ?? 'null'} XAG=${silverOz ?? 'null'}`);
+      } catch (e) {
+        dbg('Yahoo Finance', false, e.message);
+      }
 
+      dbg('metals result', false, 'all sources exhausted — using fallback prices');
       return false;
     }
 
     // Fetch fiat exchange rates vs USD.
     async function fetchFXRates() {
-      if (liveRates?.PKR) return true;
+      if (liveRates?.PKR) {
+        dbg('FX (cached)', true, `PKR=${liveRates.PKR?.toFixed(2)} GBP=${liveRates.GBP?.toFixed(4)}`);
+        return true;
+      }
       try {
         const res  = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await res.json();
         if (data.result === 'success' && data.rates?.PKR > 0) {
           liveRates = data.rates;
+          dbg('open.er-api (FX)', true,
+            `PKR=${data.rates.PKR?.toFixed(2)} GBP=${data.rates.GBP?.toFixed(4)} EUR=${data.rates.EUR?.toFixed(4)} AED=${data.rates.AED?.toFixed(4)} SAR=${data.rates.SAR?.toFixed(4)} CAD=${data.rates.CAD?.toFixed(4)} AUD=${data.rates.AUD?.toFixed(4)}`);
           return true;
         }
-      } catch (_) { /* fall through */ }
+        dbg('open.er-api (FX)', false, `result=${data.result} PKR=${data.rates?.PKR ?? 'missing'}`);
+      } catch (e) {
+        dbg('open.er-api (FX)', false, e.message);
+      }
       try {
         const res  = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await res.json();
         if (data.rates?.PKR > 0) {
           liveRates = data.rates;
+          dbg('exchangerate-api (FX)', true, `PKR=${data.rates.PKR?.toFixed(2)}`);
           return true;
         }
-      } catch (_) { /* fall through */ }
+        dbg('exchangerate-api (FX)', false, `PKR=${data.rates?.PKR ?? 'missing'}`);
+      } catch (e) {
+        dbg('exchangerate-api (FX)', false, e.message);
+      }
       return false;
     }
 
@@ -1574,6 +1651,23 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Inject debug panel when ?debug is in the URL (e.g. /zakat-calculator/?debug)
+    if (DEBUG) {
+      const panel = document.createElement('details');
+      panel.id = 'api-debug';
+      panel.open = true;
+      panel.innerHTML = `
+        <summary>▸ API debug log</summary>
+        <table>
+          <thead><tr><th>Source</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody id="api-debug-rows">
+            <tr><td colspan="3" style="color:var(--muted)">Waiting for fetch…</td></tr>
+          </tbody>
+        </table>`;
+      document.querySelector('.nisab-selector')?.before(panel);
+    }
+
     addGoldEntry(22); // seed with one 22K entry (most common jewellery karat)
     updateCurrencyUI();
     updateNisabUI();
