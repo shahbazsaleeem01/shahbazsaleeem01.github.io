@@ -330,8 +330,15 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.5rem;
       min-height: 28px;
+    }
+
+    .rates-note {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin: 0 0 1.1rem;
+      line-height: 1.4;
     }
 
     .rate-chip {
@@ -865,6 +872,7 @@
     </div>
 
     <div id="rates-panel" class="rates-panel"></div>
+    <p class="rates-note">International spot price (XAU/USD) · Local market prices (e.g. sarmaaya.pk) may differ by 1–3% due to bid/ask spread &amp; data source timing.</p>
 
     <!-- NISAB -->
     <div class="nisab-selector">
@@ -1115,13 +1123,13 @@
     const GOLD_GRAMS_NISAB   = 87.48;   // = 7.5 tola
     const SILVER_GRAMS_NISAB = 612.36;  // = 52.5 tola
 
-    // Fallback prices per gram in USD (used if API fails)
-    const FALLBACK_GOLD_USD_PER_GRAM   = 2900 / TROY_OZ_TO_GRAMS;
-    const FALLBACK_SILVER_USD_PER_GRAM = 32   / TROY_OZ_TO_GRAMS;
+    // Fallback prices per gram in USD (used if API fails — update periodically)
+    const FALLBACK_GOLD_USD_PER_GRAM   = 5400 / TROY_OZ_TO_GRAMS;  // ~$5,400/oz Mar 2026
+    const FALLBACK_SILVER_USD_PER_GRAM = 90   / TROY_OZ_TO_GRAMS;  // ~$90/oz Mar 2026
 
     // Fallback exchange rates vs USD (all 8 supported currencies)
     const FALLBACK_RATES = {
-      USD: 1, PKR: 278, GBP: 0.79, EUR: 0.92,
+      USD: 1, PKR: 280, GBP: 0.79, EUR: 0.92,
       AED: 3.67, SAR: 3.75, CAD: 1.43, AUD: 1.60
     };
 
